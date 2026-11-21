@@ -10,6 +10,8 @@ import kr1v.malilibApi.config.plus.ConfigStringPlus;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Vec3i;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import xaero.common.minimap.waypoints.Waypoint;
@@ -28,11 +30,17 @@ public class Main {
 
 	static {
 		PING.setPressCallback(((_, _) -> {
-			if (Minecraft.getInstance().level == null || Minecraft.getInstance().player == null) {
+			Minecraft mc = Minecraft.getInstance();
+			Camera camera = mc.gameRenderer.mainCamera();
+			Entity cameraEntity = camera.entity();
+			if (mc.level == null || mc.player == null || cameraEntity == null) {
 				return false;
 			}
-			if (Minecraft.getInstance().hitResult == null || Minecraft.getInstance().hitResult.getType() == HitResult.Type.MISS) {
-				var hit = Minecraft.getInstance().player.pick(2500, 0, false);
+			if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
+				Vec3 from = cameraEntity.getEyePosition();
+				Vec3 viewVector = cameraEntity.getViewVector(0);
+				Vec3 to = from.add(viewVector.x * 2500, viewVector.y * 2500, viewVector.z * 2500);
+				var hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, cameraEntity));
 				if (hit.getType() == HitResult.Type.MISS) return false;
 				Vec3i pos = new Vec3i((int) hit.getLocation().x, (int)hit.getLocation().y, (int)hit.getLocation().z);
 
@@ -42,18 +50,16 @@ public class Main {
 				Pair<Double, Waypoint> toRemoveDistanceWaypoint = null;
 				for (Waypoint waypoint : currentSet.getWaypoints()) {
 					if (PING_NAME.getStringValue().equals(waypoint.getName()) && PING_INITIALS.getStringValue().equals(waypoint.getInitials())) {
-						Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
-
 						Vec3 waypointRenderPos = new Vec3(waypoint.getX() + 0.5, waypoint.getY() + 1, waypoint.getZ() + 0.5);
 
 						Vec3 offset = waypointRenderPos.subtract(camera.position());
 
 						if (offset.dot(new Vec3(camera.forwardVector())) <= 0) continue;
 
-						Vec3 screenPos = Minecraft.getInstance().gameRenderer.projectPointToScreen(waypointRenderPos);
+						Vec3 screenPos = mc.gameRenderer.projectPointToScreen(waypointRenderPos);
 
-						double dx = screenPos.x * Minecraft.getInstance().getWindow().getWidth() / 2.0;
-						double dy = screenPos.y * Minecraft.getInstance().getWindow().getHeight() / 2.0;
+						double dx = screenPos.x * mc.getWindow().getWidth() / 2.0;
+						double dy = screenPos.y * mc.getWindow().getHeight() / 2.0;
 						double distanceSqr = dx*dx + dy*dy;
 
 						double radius = MAX_DISTANCE.getDoubleValue() * 10;
