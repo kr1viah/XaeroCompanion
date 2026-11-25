@@ -36,14 +36,8 @@ public class Main {
 			if (mc.level == null || mc.player == null || cameraEntity == null) {
 				return false;
 			}
-			if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
-				Vec3 from = cameraEntity.getEyePosition();
-				Vec3 viewVector = cameraEntity.getViewVector(0);
-				Vec3 to = from.add(viewVector.x * 2500, viewVector.y * 2500, viewVector.z * 2500);
-				var hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, cameraEntity));
-				if (hit.getType() == HitResult.Type.MISS) return false;
-				Vec3i pos = new Vec3i((int) hit.getLocation().x, (int)hit.getLocation().y, (int)hit.getLocation().z);
 
+			if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
 				var currentSet = BuiltInHudModules.MINIMAP.getCurrentSession().getWorldManager().getCurrentWorld().getCurrentWaypointSet();
 
 				// check if exists in range
@@ -71,11 +65,17 @@ public class Main {
 					}
 				}
 
-
 				if (toRemoveDistanceWaypoint != null) {
 					currentSet.remove(toRemoveDistanceWaypoint.second);
 					return true;
 				}
+
+				Vec3 from = cameraEntity.getEyePosition();
+				Vec3 viewVector = cameraEntity.getViewVector(0);
+				Vec3 to = from.add(viewVector.x * 2500, viewVector.y * 2500, viewVector.z * 2500);
+				var hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, cameraEntity));
+				if (hit.getType() == HitResult.Type.MISS) return false;
+				Vec3i pos = new Vec3i((int) hit.getLocation().x, (int)hit.getLocation().y, (int)hit.getLocation().z);
 
 				Waypoint waypoint = new Waypoint(pos.getX(), pos.getY(), pos.getZ(), PING_NAME.getStringValue(), PING_INITIALS.getStringValue(), PING_COLOR.get(), WaypointPurpose.DESTINATION, true, true);
 				currentSet.add(waypoint);
