@@ -18,6 +18,10 @@ import xaero.common.minimap.waypoints.Waypoint;
 import xaero.hud.minimap.BuiltInHudModules;
 import xaero.hud.minimap.waypoint.WaypointColor;
 import xaero.hud.minimap.waypoint.WaypointPurpose;
+import xaero.hud.minimap.waypoint.set.WaypointSet;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Config("xaerocompanion")
 public class Main {
@@ -27,8 +31,47 @@ public class Main {
 	public static final ConfigDoublePlus MAX_DISTANCE = new ConfigDoublePlus("Max distance", 3, 0, 15, "Some metric of how close the crosshair should be to the ping to remove it. Set to 0 to disable");
 
 	public static final ConfigHotkeyPlus PING = new ConfigHotkeyPlus("Ping", "MOUSE_MIDDLE", "When this hotkey is pressed, it will place a ping waypoint where you are looking").setAllowExtraKeys(true);
+	public static final ConfigHotkeyPlus DELETE_PINGS = new ConfigHotkeyPlus("Delete all pings", "", "When this hotkey is pressed, it will delete all pings").setAllowExtraKeys(true);
+	public static final ConfigHotkeyPlus UNDO_LAST_PING = new ConfigHotkeyPlus("Undo ping", "", "When this hotkey is pressed, it will delete the last ping you placed");
+
+	public static boolean isPing(Waypoint waypoint) {
+		return PING_NAME.getStringValue().equals(waypoint.getName()) && PING_INITIALS.getStringValue().equals(waypoint.getInitials());
+	}
 
 	static {
+		DELETE_PINGS.setPressCallback((_ ,_ ) -> {
+			WaypointSet currentSet = BuiltInHudModules.MINIMAP.getCurrentSession().getWorldManager().getCurrentWorld().getCurrentWaypointSet();
+
+			List<Waypoint> toRemove = new ArrayList<>();
+			for (Waypoint waypoint : currentSet.getWaypoints()) {
+				if (isPing(waypoint)) {
+					toRemove.add(waypoint);
+				}
+			}
+
+			if (toRemove.isEmpty()) return false;
+
+			currentSet.removeAll(toRemove);
+			return true;
+		});
+
+		UNDO_LAST_PING.setPressCallback((_ ,_) -> {
+			WaypointSet currentSet = BuiltInHudModules.MINIMAP.getCurrentSession().getWorldManager().getCurrentWorld().getCurrentWaypointSet();
+
+			Waypoint lastPing = null;
+
+			for (Waypoint waypoint : currentSet.getWaypoints()) {
+				if (isPing(waypoint)) {
+					lastPing = waypoint;
+				}
+			}
+
+			if (lastPing == null) return false;
+
+			currentSet.remove(lastPing);
+			return true;
+		});
+
 		PING.setPressCallback(((_, _) -> {
 			Minecraft mc = Minecraft.getInstance();
 			Camera camera = mc.gameRenderer.mainCamera();
@@ -38,12 +81,12 @@ public class Main {
 			}
 
 			if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
-				var currentSet = BuiltInHudModules.MINIMAP.getCurrentSession().getWorldManager().getCurrentWorld().getCurrentWaypointSet();
+				WaypointSet currentSet = BuiltInHudModules.MINIMAP.getCurrentSession().getWorldManager().getCurrentWorld().getCurrentWaypointSet();
 
 				// check if exists in range
 				Pair<Double, Waypoint> toRemoveDistanceWaypoint = null;
 				for (Waypoint waypoint : currentSet.getWaypoints()) {
-					if (PING_NAME.getStringValue().equals(waypoint.getName()) && PING_INITIALS.getStringValue().equals(waypoint.getInitials())) {
+					if (isPing(waypoint)) {
 						Vec3 waypointRenderPos = new Vec3(waypoint.getX() + 0.5, waypoint.getY() + 1, waypoint.getZ() + 0.5);
 
 						Vec3 offset = waypointRenderPos.subtract(camera.position());
